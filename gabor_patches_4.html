@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Gabor Patches Exercise</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+[data-theme="dark"] {
+  --bg: #0e0f0d;
+  --surface: #181a17;
+  --surface2: #1f2219;
+  --accent: #7ecfa0;
+  --accent2: #e07b3a;
+  --text: #e8e6e0;
+  --muted: #6a6b64;
+  --border: #2a2d26;
+  --green: #4aab70;
+  --grid-bg: #000000;
+  --patch-filter: invert(1);
+}
+[data-theme="light"] {
+  --bg: #f0ede8;
+  --surface: #e4e0d8;
+  --surface2: #d8d4cc;
+  --accent: #2d4a3e;
+  --accent2: #c4622d;
+  --text: #1a1a18;
+  --muted: #7a776e;
+  --border: #c8c4bc;
+  --green: #2d7a4f;
+  --grid-bg: #ffffff;
+  --patch-filter: none;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'DM Mono', monospace;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 20px;
+  gap: 24px;
+  transition: background 0.3s, color 0.3s;
+}
+header {
+  text-align: center;
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.header-text { text-align: left; }
+h1 {
+  font-family: 'Syne', sans-serif;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--accent);
+  line-height: 1;
+}
+h1 span { color: var(--accent2); }
+.subtitle {
+  font-size: 0.72rem;
+  color: var(--muted);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+.theme-toggle {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: all 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.theme-toggle:hover { color: var(--accent); border-color: var(--accent); }
+
+.timer-wrap { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.timer-display {
+  font-family: 'Syne', sans-serif;
+  font-size: 3.5rem;
+  font-weight: 800;
+  color: var(--accent);
+  letter-spacing: -0.04em;
+  line-height: 1;
+  transition: color 0.3s;
+  cursor: pointer;
+  user-select: none;
+}
+.timer-display:hover { opacity: 0.85; }
+.timer-display.warning { color: var(--accent2); }
+.timer-hint {
+  font-size: 0.65rem;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.7;
+  min-height: 1em;
+}
+.timer-picker {
+  display: none;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  max-width: 380px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: background 0.3s, border-color 0.3s;
+  overflow: hidden;
+}
+.timer-picker.open { display: flex; }
+.timer-picker-label {
+  font-size: 0.65rem;
+  color: var(--muted);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 10px 16px 6px;
+}
+.timer-options { display: flex; }
+.timer-option {
+  flex: 1;
+  font-family: 'Syne', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 800;
+  padding: 14px 8px;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  background: transparent;
+  color: var(--muted);
+  letter-spacing: -0.02em;
+  transition: background 0.15s, color 0.15s;
+  border-top: 1px solid var(--border);
+}
+.timer-option:not(:last-child) { border-right: 1px solid var(--border); }
+.timer-option:hover { background: var(--surface); color: var(--accent); }
+.timer-option.active { color: var(--accent); background: var(--surface); }
+
+.grid-wrap {
+  width: 100%;
+  max-width: 380px;
+  background: var(--grid-bg);
+  border-radius: 10px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  transition: background 0.3s, border-color 0.3s;
+  overflow: hidden;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(6, 1fr);
+  gap: 0;
+  width: 100%;
+  aspect-ratio: 2/3;
+}
+.symbol {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  overflow: hidden;
+  transition: opacity 0.15s;
+  padding: 4px;
+}
+.symbol.shuffling { opacity: 0; }
+.symbol canvas {
+  width: 100%;
+  height: 100%;
+  filter: var(--patch-filter);
+  transition: filter 0.3s;
+}
+.panel {
+  width: 100%;
+  max-width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: background 0.3s, border-color 0.3s;
+  overflow: hidden;
+}
+.row { display: flex; gap: 8px; align-items: center; }
+.row.stretch { justify-content: stretch; }
+.row.stretch > * { flex: 1; }
+.row.stretch button { border: none; border-radius: 0; }
+.row.stretch { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; gap: 0; }
+.row.stretch button:not(:last-child) { border-right: 1px solid var(--border); }
+button {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  background: var(--surface2);
+  color: var(--text);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+button:hover { background: var(--border); }
+button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 700; }
+button.primary:hover { opacity: 0.85; }
+button.danger { background: var(--accent2); color: var(--bg); border-color: var(--accent2); font-weight: 700; }
+button.danger:hover { opacity: 0.85; }
+.autoshuffle-block { display: flex; flex-direction: column; gap: 8px; }
+.label-row { display: flex; justify-content: space-between; align-items: center; }
+.label { font-size: 0.72rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+.toggle-wrap { display: flex; align-items: center; gap: 8px; }
+.toggle { position: relative; width: 36px; height: 20px; cursor: pointer; }
+.toggle input { display: none; }
+.toggle-track { position: absolute; inset: 0; background: var(--border); border-radius: 10px; transition: background 0.2s; }
+.toggle input:checked + .toggle-track { background: var(--green); }
+.toggle-thumb { position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; background: white; border-radius: 50%; transition: transform 0.2s; }
+.toggle input:checked ~ .toggle-thumb { transform: translateX(16px); }
+.toggle-status { font-size: 0.72rem; color: var(--muted); letter-spacing: 0.06em; min-width: 24px; }
+.slider-row { display: flex; align-items: center; gap: 10px; }
+input[type=range] {
+  flex: 1; -webkit-appearance: none; height: 4px;
+  background: var(--border); border-radius: 2px; outline: none; cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 16px; height: 16px;
+  background: var(--accent); border-radius: 50%; cursor: pointer;
+}
+input[type=range]:disabled { opacity: 0.3; cursor: not-allowed; }
+.slider-val { font-size: 0.85rem; font-weight: 500; color: var(--accent); min-width: 36px; text-align: right; }
+.progress-wrap { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.progress-bar { height: 100%; background: var(--green); width: 100%; }
+.divider { height: 1px; background: var(--border); margin: 0 -16px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="header-text">
+    <h1>Gabor <span>Patches</span></h1>
+    <p class="subtitle">Vision Exercise</p>
+  </div>
+  <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()">☀ Light</button>
+</header>
+
+<div class="timer-wrap">
+  <div class="timer-display" id="timer" onclick="togglePicker()">03:00</div>
+  <div class="timer-hint" id="timerHint">tap to change duration</div>
+</div>
+
+<div class="timer-picker" id="timerPicker">
+  <span class="timer-picker-label">Select duration</span>
+  <div class="timer-options">
+    <button class="timer-option" data-secs="60" onclick="setDuration(60)">1 min</button>
+    <button class="timer-option" data-secs="120" onclick="setDuration(120)">2 min</button>
+    <button class="timer-option active" data-secs="180" onclick="setDuration(180)">3 min</button>
+  </div>
+</div>
+
+<div class="grid-wrap">
+  <div class="grid" id="grid"></div>
+</div>
+
+<div class="panel">
+  <div class="row stretch">
+    <button class="primary" id="btnTimer" onclick="toggleTimer()">▶ Start</button>
+    <button onclick="resetTimer()">↺ Reset</button>
+    <button onclick="shuffleSymbols()">⇄ Shuffle</button>
+  </div>
+  <div class="divider"></div>
+  <div class="autoshuffle-block">
+    <div class="label-row">
+      <span class="label">Auto-shuffle</span>
+      <div class="toggle-wrap">
+        <span class="toggle-status" id="toggleStatus">OFF</span>
+        <label class="toggle">
+          <input type="checkbox" id="autoToggle" onchange="handleAutoToggle()">
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+      </div>
+    </div>
+    <div class="slider-row">
+      <input type="range" id="intervalSlider" min="2" max="90" value="5" step="1" oninput="handleSlider()" disabled>
+      <span class="slider-val" id="sliderVal">5s</span>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const BASE64_IMAGES = [
+  'data:image/png;base64,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',
+  'data:image/png;base64,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',
+  'data:image/png;base64,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'
+];
+const ANGLES = [0, 45, 90, 135];
+
+let loadedImages = [];
+let pairs = [];
+let timerInterval = null;
+let selectedDuration = 180;
+let timeLeft = 180;
+let running = false;
+let autoEnabled = false;
+let intervalSec = 5;
+let progressTimeout = null;
+let progressRafId = null;
+let cycleStartTime = null;
+let cycleRemaining = null;
+let pickerOpen = false;
+let isDark = true;
+
+function toggleTheme() {
+  isDark = !isDark;
+  const theme = isDark ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', theme);
+  document.getElementById('themeBtn').textContent = isDark ? '☀ Light' : '☾ Dark';
+}
+
+function loadImages() {
+  return Promise.all(BASE64_IMAGES.map(src => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = src;
+    });
+  }));
+}
+
+function drawRotatedPatch(img, angle) {
+  const size = 120;
+  const c = document.createElement('canvas');
+  c.width = size; c.height = size;
+  const ctx = c.getContext('2d');
+  ctx.save();
+  ctx.translate(size / 2, size / 2);
+  ctx.rotate(angle * Math.PI / 180);
+  ctx.drawImage(img, -size / 2, -size / 2, size, size);
+  ctx.restore();
+  return c;
+}
+
+function buildSymbolSet() {
+  const symbols = [];
+  loadedImages.forEach(img => {
+    ANGLES.forEach(angle => { symbols.push({ img, angle }); });
+  });
+  return symbols;
+}
+
+function fillGrid() {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  pairs.forEach(({ img, angle }) => {
+    const cell = document.createElement('div');
+    cell.className = 'symbol';
+    const c = drawRotatedPatch(img, angle);
+    c.style.width = '100%';
+    c.style.height = '100%';
+    cell.appendChild(c);
+    grid.appendChild(cell);
+  });
+}
+
+function shuffleSymbols(animated = false) {
+  if (animated) {
+    document.querySelectorAll('.symbol').forEach(c => c.classList.add('shuffling'));
+    setTimeout(() => {
+      doShuffle();
+      document.querySelectorAll('.symbol').forEach(c => c.classList.remove('shuffling'));
+    }, 150);
+  } else { doShuffle(); }
+}
+
+function doShuffle() {
+  const symbols = buildSymbolSet();
+  pairs = [...symbols, ...symbols];
+  for (let i = pairs.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pairs[i], pairs[j]] = [pairs[j], pairs[i]];
+  }
+  fillGrid();
+}
+
+function togglePicker() {
+  if (running) return;
+  pickerOpen = !pickerOpen;
+  document.getElementById('timerPicker').classList.toggle('open', pickerOpen);
+  document.getElementById('timerHint').textContent = pickerOpen ? 'tap a duration below' : 'tap to change duration';
+}
+
+function setDuration(secs) {
+  selectedDuration = secs;
+  timeLeft = secs;
+  updateTimerDisplay();
+  document.querySelectorAll('.timer-option').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.secs) === secs);
+  });
+  pickerOpen = false;
+  document.getElementById('timerPicker').classList.remove('open');
+  document.getElementById('timerHint').textContent = 'tap to change duration';
+}
+
+function toggleTimer() { running ? pauseTimer() : startTimer(); }
+
+function startTimer() {
+  if (timeLeft <= 0) timeLeft = selectedDuration;
+  running = true;
+  const btn = document.getElementById('btnTimer');
+  btn.textContent = '⏸ Pause';
+  btn.classList.remove('primary');
+  btn.classList.add('danger');
+  document.getElementById('timerHint').textContent = '';
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    updateTimerDisplay();
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      running = false;
+      btn.textContent = '▶ Start';
+      btn.classList.remove('danger');
+      btn.classList.add('primary');
+      document.getElementById('timerHint').textContent = 'tap to change duration';
+      pauseAutoShuffle();
+    }
+  }, 1000);
+  if (autoEnabled) beginCycle();
+}
+
+function pauseTimer() {
+  running = false;
+  clearInterval(timerInterval);
+  const btn = document.getElementById('btnTimer');
+  btn.textContent = '▶ Resume';
+  btn.classList.remove('danger');
+  btn.classList.add('primary');
+  document.getElementById('timerHint').textContent = 'tap to change duration';
+  if (autoEnabled) pauseAutoShuffle();
+}
+
+function resetTimer() {
+  pauseTimer();
+  timeLeft = selectedDuration;
+  updateTimerDisplay();
+  document.getElementById('btnTimer').textContent = '▶ Start';
+  if (autoEnabled) { stopAutoShuffle(); cycleRemaining = intervalSec * 1000; }
+}
+
+function updateTimerDisplay() {
+  const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+  const s = (timeLeft % 60).toString().padStart(2, '0');
+  const el = document.getElementById('timer');
+  el.textContent = m + ':' + s;
+  el.classList.toggle('warning', timeLeft <= 30);
+}
+
+function handleAutoToggle() {
+  autoEnabled = document.getElementById('autoToggle').checked;
+  document.getElementById('toggleStatus').textContent = autoEnabled ? 'ON' : 'OFF';
+  document.getElementById('intervalSlider').disabled = !autoEnabled;
+  if (autoEnabled) {
+    cycleRemaining = intervalSec * 1000;
+    if (running) beginCycle();
+  } else { stopAutoShuffle(); }
+}
+
+function handleSlider() {
+  intervalSec = parseInt(document.getElementById('intervalSlider').value);
+  document.getElementById('sliderVal').textContent = intervalSec + 's';
+  if (autoEnabled) {
+    stopAutoShuffle();
+    cycleRemaining = intervalSec * 1000;
+    if (running) beginCycle();
+  }
+}
+
+function beginCycle() {
+  stopAutoShuffle();
+  const duration = cycleRemaining !== null ? cycleRemaining : intervalSec * 1000;
+  const total = intervalSec * 1000;
+  cycleStartTime = Date.now();
+  tickProgress(cycleStartTime, duration, total);
+  progressTimeout = setTimeout(() => {
+    shuffleSymbols(true);
+    cycleRemaining = intervalSec * 1000;
+    if (autoEnabled && running) beginCycle();
+  }, duration);
+}
+
+function tickProgress(startTs, duration, total) {
+  cancelAnimationFrame(progressRafId);
+  const bar = document.getElementById('progressBar');
+  function frame() {
+    const elapsed = Date.now() - startTs;
+    const frac = Math.max(0, 1 - elapsed / duration);
+    bar.style.width = (frac * duration / total * 100) + '%';
+    if (elapsed < duration) progressRafId = requestAnimationFrame(frame);
+  }
+  progressRafId = requestAnimationFrame(frame);
+}
+
+function pauseAutoShuffle() {
+  if (cycleStartTime !== null) {
+    const elapsed = Date.now() - cycleStartTime;
+    cycleRemaining = Math.max(0, (cycleRemaining !== null ? cycleRemaining : intervalSec * 1000) - elapsed);
+    cycleStartTime = null;
+  }
+  cancelAnimationFrame(progressRafId);
+  clearTimeout(progressTimeout);
+}
+
+function stopAutoShuffle() {
+  clearTimeout(progressTimeout);
+  cancelAnimationFrame(progressRafId);
+  cycleStartTime = null;
+  cycleRemaining = null;
+  document.getElementById('progressBar').style.width = '100%';
+}
+
+window.onload = async () => {
+  updateTimerDisplay();
+  loadedImages = await loadImages();
+  doShuffle();
+};
+</script>
+</body>
+</html>
